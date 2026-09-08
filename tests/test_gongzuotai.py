@@ -335,6 +335,76 @@ def point_pagination(page: Page):
     return page.locator(".ant-pagination").first
 
 
+# ---------- 审批中心元素 (工作台 Tab 内) ----------
+# 实测审批中心位于工作台 Tab 下方, 含 4 个统计卡片 (ant-statistic),
+# 每个卡片含标签 (待我审批/我已处理/我发起的/我收到的) + 数字链接 (a[href*='/todo-center/']).
+# 点击数字链接后页面不跳转 URL, 但内容切换为待办中心审批列表 (含 Radio.Group + 查询表单 + 表格).
+
+def approval_center_card(page: Page, card_label: str):
+    """
+    审批中心 - 单个统计卡片 (按标签文本定位).
+    card_label: '待我审批' / '我已处理' / '我发起的' / '我收到的'.
+    """
+    return page.locator(".ant-statistic", has=page.locator(".ant-statistic-title", has_text=card_label)).first
+
+
+def approval_center_number_link(page: Page, card_label: str):
+    """
+    审批中心 - 卡片下方的数字链接 (a[href*='/todo-center/']).
+    card_label 用于定位所属卡片, 返回卡片内的 <a> 链接.
+    """
+    return approval_center_card(page, card_label).locator("a").first
+
+
+def approval_radio_tab(page: Page, tab_name: str):
+    """
+    跳转后页面 - 审批 Radio.Group 子 Tab (含括号数字).
+    tab_name: '待我审批' / '我已处理' / '我创建的' / '抄送我的'.
+    选中态通过 ant-radio-button-wrapper-checked 类标记.
+    """
+    return page.locator(".ant-radio-button-wrapper", has_text=tab_name).first
+
+
+def approval_form_label(page: Page, label_text: str):
+    """跳转后页面 - 查询表单标签 (审批ID / 审批标题 / 审批类型 / 状态)"""
+    return page.locator(".ant-form-item-label", has_text=label_text).first
+
+
+def approval_form_input(page: Page):
+    """跳转后页面 - 查询表单输入框 (placeholder='请输入', 取第一个)"""
+    return page.get_by_placeholder("请输入").first
+
+
+def approval_reset_button(page: Page):
+    """跳转后页面 - 重置按钮 (两字按钮含空格: '重 置')"""
+    return page.get_by_role("button", name=re.compile(r"重\s*置"))
+
+
+def approval_query_button(page: Page):
+    """跳转后页面 - 查询按钮 (两字按钮含空格: '查 询')"""
+    return page.get_by_role("button", name=re.compile(r"查\s*询"))
+
+
+def approval_collapse_link(page: Page):
+    """跳转后页面 - 收起链接 (a 标签, 查询表单右侧)"""
+    return page.locator("a", has_text="收起").first
+
+
+def approval_table_header(page: Page):
+    """跳转后页面 - 审批列表表头"""
+    return page.locator(".ant-table-thead").first
+
+
+def approval_pagination(page: Page):
+    """跳转后页面 - 分页控件"""
+    return page.locator(".ant-pagination").first
+
+
+def workbench_menu_item(page: Page):
+    """左侧全局导航菜单 - 工作台菜单项 (role=menuitem)"""
+    return page.get_by_role("menuitem", name="工作台")
+
+
 # ==================== pytest fixture: 登录 + 浏览器上下文管理 ====================
 
 @pytest.fixture(scope="session")
@@ -1111,3 +1181,221 @@ class TestGongZuoTai:
         with allure.step("校验日历组件和日期格子仍可见"):
             expect(calendar_container(page)).to_be_visible()
             expect(calendar_date_cells(page).first).to_be_visible()
+
+    # ---------- 23. 工作台 -> 审批中心 -> 待我审批数字跳转 ----------
+
+    @allure.story("审批中心导航")
+    @allure.title("审批中心: 卡片元素可见 + 点击待我审批数字跳转 + 查询表单/表格可见 + 返回")
+    @allure.severity(allure.severity_level.CRITICAL)
+    def test_workbench_approval_center_elements(self, logged_in_page: Page):
+        """覆盖: 审批中心4卡片可见 + 查询表单/表格/分页可见"""
+        page = logged_in_page
+
+        with allure.step("确保停留在工作台 Tab"):
+            switch_to_tab(tab_workbench(page))
+
+        with allure.step("校验审批中心4个统计卡片可见 (待我审批/我已处理/我发起的/我收到的)"):
+            for label in ["待我审批", "我已处理", "我发起的", "我收到的"]:
+                expect(approval_center_card(page, label)).to_be_visible(timeout=10000)
+
+    @allure.story("审批中心导航")
+    @allure.title("审批中心: 点击待我审批数字 -> 跳转待我审批Tab高亮 + 查询表单/表格可见 + 返回工作台")
+    @allure.severity(allure.severity_level.CRITICAL)
+    def test_workbench_approval_nav_pending(self, logged_in_page: Page):
+        """覆盖: 点击待我审批数字链接 -> Tab高亮 + 数字一致 + 查询条件/表头/分页可见 + 返回"""
+        page = logged_in_page
+
+        with allure.step("确保停留在工作台 Tab"):
+            switch_to_tab(tab_workbench(page))
+
+        with allure.step("获取待我审批卡片数字并点击数字链接"):
+            link = approval_center_number_link(page, "待我审批")
+            expect(link).to_be_visible(timeout=10000)
+            num_before = link.inner_text()
+            link.click()
+
+        with allure.step("校验跳转后待我审批 Radio Tab 高亮选中"):
+            radio = approval_radio_tab(page, "待我审批")
+            expect(radio).to_be_visible(timeout=10000)
+            expect(radio).to_have_class(
+                re.compile(r".*ant-radio-button-wrapper-checked.*"), timeout=10000
+            )
+
+        with allure.step("校验 Radio Tab 括号中数字与点击的数字一致"):
+            radio_text = radio.inner_text()
+            # 提取括号内数字, 如 "待我审批(357)" -> "357"
+            match = re.search(r"\((\d+)\)", radio_text)
+            assert match, f"未在 radio 文本中找到括号数字: {radio_text!r}"
+            num_after = match.group(1)
+            assert num_after == num_before, f"数字不一致: 卡片={num_before!r} radio={num_after!r}"
+
+        with allure.step("校验查询表单元素可见 (审批ID/审批标题/审批类型/状态)"):
+            for label_text in ["审批ID", "审批标题", "审批类型", "状态"]:
+                expect(approval_form_label(page, label_text)).to_be_visible()
+
+        with allure.step("校验重置/查询按钮可见"):
+            expect(approval_reset_button(page)).to_be_visible()
+            expect(approval_query_button(page)).to_be_visible()
+
+        with allure.step("校验收起链接可见"):
+            expect(approval_collapse_link(page)).to_be_visible()
+
+        with allure.step("校验列表表头列名可见"):
+            expect(approval_table_header(page)).to_be_visible()
+            expect(approval_table_header(page)).to_contain_text("审批ID")
+            expect(approval_table_header(page)).to_contain_text("审批标题")
+            expect(approval_table_header(page)).to_contain_text("审批类型")
+            expect(approval_table_header(page)).to_contain_text("发起人")
+            expect(approval_table_header(page)).to_contain_text("状态")
+
+        with allure.step("校验分页控件可见"):
+            expect(approval_pagination(page)).to_be_visible()
+
+        with allure.step("返回工作台菜单栏, 校验工作台 Tab 选中"):
+            workbench_menu_item(page).click()
+            expect(page).to_have_url(re.compile(r"/dashboard"), timeout=15000)
+            expect(tab_workbench(page)).to_have_attribute("aria-selected", "true", timeout=10000)
+
+    @allure.story("审批中心导航")
+    @allure.title("审批中心: 点击我已处理数字 -> 跳转我已处理Tab高亮 + 返回工作台")
+    @allure.severity(allure.severity_level.CRITICAL)
+    def test_workbench_approval_nav_processed(self, logged_in_page: Page):
+        """覆盖: 点击我已处理数字链接 -> Tab高亮 + 数字一致 + 返回"""
+        page = logged_in_page
+
+        with allure.step("确保停留在工作台 Tab"):
+            switch_to_tab(tab_workbench(page))
+
+        with allure.step("获取我已处理卡片数字并点击数字链接"):
+            link = approval_center_number_link(page, "我已处理")
+            expect(link).to_be_visible(timeout=10000)
+            num_before = link.inner_text()
+            link.click()
+
+        with allure.step("校验跳转后我已处理 Radio Tab 高亮选中"):
+            radio = approval_radio_tab(page, "我已处理")
+            expect(radio).to_be_visible(timeout=10000)
+            expect(radio).to_have_class(
+                re.compile(r".*ant-radio-button-wrapper-checked.*"), timeout=10000
+            )
+
+        with allure.step("校验 Radio Tab 括号中数字与点击的数字一致"):
+            radio_text = radio.inner_text()
+            match = re.search(r"\((\d+)\)", radio_text)
+            assert match, f"未在 radio 文本中找到括号数字: {radio_text!r}"
+            num_after = match.group(1)
+            assert num_after == num_before, f"数字不一致: 卡片={num_before!r} radio={num_after!r}"
+
+        with allure.step("返回工作台菜单栏, 校验工作台 Tab 选中"):
+            workbench_menu_item(page).click()
+            expect(page).to_have_url(re.compile(r"/dashboard"), timeout=15000)
+            expect(tab_workbench(page)).to_have_attribute("aria-selected", "true", timeout=10000)
+
+    @allure.story("审批中心导航")
+    @allure.title("审批中心: 点击我发起的数字 -> 跳转我创建的Tab高亮 + 返回工作台")
+    @allure.severity(allure.severity_level.CRITICAL)
+    def test_workbench_approval_nav_created(self, logged_in_page: Page):
+        """覆盖: 点击我发起的数字链接 -> 跳转我创建的Tab高亮 + 数字一致 + 返回"""
+        page = logged_in_page
+
+        with allure.step("确保停留在工作台 Tab"):
+            switch_to_tab(tab_workbench(page))
+
+        with allure.step("获取我发起的卡片数字并点击数字链接"):
+            link = approval_center_number_link(page, "我发起的")
+            expect(link).to_be_visible(timeout=10000)
+            num_before = link.inner_text()
+            link.click()
+
+        with allure.step("校验跳转后我创建的 Radio Tab 高亮选中 (卡片'我发起的'对应Tab'我创建的')"):
+            radio = approval_radio_tab(page, "我创建的")
+            expect(radio).to_be_visible(timeout=10000)
+            expect(radio).to_have_class(
+                re.compile(r".*ant-radio-button-wrapper-checked.*"), timeout=10000
+            )
+
+        with allure.step("校验 Radio Tab 括号中数字与点击的数字一致"):
+            radio_text = radio.inner_text()
+            match = re.search(r"\((\d+)\)", radio_text)
+            assert match, f"未在 radio 文本中找到括号数字: {radio_text!r}"
+            num_after = match.group(1)
+            assert num_after == num_before, f"数字不一致: 卡片={num_before!r} radio={num_after!r}"
+
+        with allure.step("返回工作台菜单栏, 校验工作台 Tab 选中"):
+            workbench_menu_item(page).click()
+            expect(page).to_have_url(re.compile(r"/dashboard"), timeout=15000)
+            expect(tab_workbench(page)).to_have_attribute("aria-selected", "true", timeout=10000)
+
+    @allure.story("审批中心导航")
+    @allure.title("审批中心: 点击我收到的数字 -> 跳转抄送我的Tab高亮 + 返回工作台")
+    @allure.severity(allure.severity_level.CRITICAL)
+    def test_workbench_approval_nav_cc(self, logged_in_page: Page):
+        """覆盖: 点击我收到的数字链接 -> 跳转抄送我的Tab高亮 + 数字一致 + 返回"""
+        page = logged_in_page
+
+        with allure.step("确保停留在工作台 Tab"):
+            switch_to_tab(tab_workbench(page))
+
+        with allure.step("获取我收到的卡片数字并点击数字链接"):
+            link = approval_center_number_link(page, "我收到的")
+            expect(link).to_be_visible(timeout=10000)
+            num_before = link.inner_text()
+            link.click()
+
+        with allure.step("校验跳转后抄送我的 Radio Tab 高亮选中 (卡片'我收到的'对应Tab'抄送我的')"):
+            radio = approval_radio_tab(page, "抄送我的")
+            expect(radio).to_be_visible(timeout=10000)
+            expect(radio).to_have_class(
+                re.compile(r".*ant-radio-button-wrapper-checked.*"), timeout=10000
+            )
+
+        with allure.step("校验 Radio Tab 括号中数字与点击的数字一致"):
+            radio_text = radio.inner_text()
+            match = re.search(r"\((\d+)\)", radio_text)
+            assert match, f"未在 radio 文本中找到括号数字: {radio_text!r}"
+            num_after = match.group(1)
+            assert num_after == num_before, f"数字不一致: 卡片={num_before!r} radio={num_after!r}"
+
+        with allure.step("返回工作台菜单栏, 校验工作台 Tab 选中"):
+            workbench_menu_item(page).click()
+            expect(page).to_have_url(re.compile(r"/dashboard"), timeout=15000)
+            expect(tab_workbench(page)).to_have_attribute("aria-selected", "true", timeout=10000)
+
+    @allure.story("审批中心导航")
+    @allure.title("审批中心: 跳转后Radio Tab来回切换, 校验高亮状态")
+    @allure.severity(allure.severity_level.CRITICAL)
+    def test_workbench_approval_radio_switch(self, logged_in_page: Page):
+        """覆盖: 跳转后分别点击 待我审批/我已处理/我创建的 Radio Tab, 校验高亮"""
+        page = logged_in_page
+
+        with allure.step("确保停留在工作台 Tab"):
+            switch_to_tab(tab_workbench(page))
+
+        with allure.step("点击待我审批数字链接进入审批列表"):
+            approval_center_number_link(page, "待我审批").click()
+
+        with allure.step("点击我已处理 Radio Tab, 校验高亮"):
+            radio = approval_radio_tab(page, "我已处理")
+            radio.click()
+            expect(radio).to_have_class(
+                re.compile(r".*ant-radio-button-wrapper-checked.*"), timeout=10000
+            )
+
+        with allure.step("点击我创建的 Radio Tab, 校验高亮"):
+            radio = approval_radio_tab(page, "我创建的")
+            radio.click()
+            expect(radio).to_have_class(
+                re.compile(r".*ant-radio-button-wrapper-checked.*"), timeout=10000
+            )
+
+        with allure.step("点击待我审批 Radio Tab, 校验高亮"):
+            radio = approval_radio_tab(page, "待我审批")
+            radio.click()
+            expect(radio).to_have_class(
+                re.compile(r".*ant-radio-button-wrapper-checked.*"), timeout=10000
+            )
+
+        with allure.step("点击左侧菜单工作台, 返回工作台菜单栏, 校验工作台 Tab 选中"):
+            workbench_menu_item(page).click()
+            expect(page).to_have_url(re.compile(r"/dashboard"), timeout=15000)
+            expect(tab_workbench(page)).to_have_attribute("aria-selected", "true", timeout=10000)
