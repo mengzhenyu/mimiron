@@ -1,0 +1,151 @@
+# ============================================================
+# 观星系统 E2E 自动化测试 - 常用命令
+# ============================================================
+# 说明: 所有 pytest 命令统一使用 venv/bin/python -m pytest 形式,
+#       无需先激活虚拟环境即可直接运行.
+
+# ==================== 环境准备 ====================
+
+# 激活虚拟环境 (可选, 激活后可直接用 pytest 命令)
+source venv/bin/activate
+
+# 安装依赖
+pip install -r requirements.txt
+pip install pytest playwright allure-pytest
+playwright install chromium
+
+# ==================== 环境变量配置 (运行前必设) ====================
+
+# 登录密码 (必须通过环境变量提供, 不写入代码)
+export LOGIN_PASSWORD='}zV:&L) ".sT'
+
+# 非无头模式运行 (推荐调试时使用, 默认 false 表示有头模式)
+export HEADLESS=false
+
+# 可选: 覆盖默认登录用户名
+# export LOGIN_USERNAME='zhenyu_m'
+
+# 可选: 覆盖被测系统地址
+# export GONGZUOTAI_BASE_URL='https://stargazer-test.mimiron.cn:8443'
+# export GONGZUOTAI_LOGIN_URL='https://stargazer-test.mimiron.cn:8443/login'
+
+# ==================== 运行测试 ====================
+
+# 运行全部用例 (工作台 test_gongzuotai.py + 登录 test_login.py)
+venv/bin/python -m pytest tests/ --alluredir=./allure-results --clean-alluredir
+
+# 仅运行工作台菜单页面测试 (22 个用例, 单次登录约 2 分 15 秒)
+venv/bin/python -m pytest tests/test_gongzuotai.py -v --alluredir=./allure-results --clean-alluredir
+
+# 运行单个用例
+venv/bin/python -m pytest tests/test_gongzuotai.py::TestGongZuoTai::test_tab_switch_between_three_tabs -v --alluredir=./allure-results
+
+# 运行指定 story (按 allure.story 筛选)
+venv/bin/python -m pytest tests/test_gongzuotai.py -v -k "search" --alluredir=./allure-results
+venv/bin/python -m pytest tests/test_gongzuotai.py -v -k "nav_event or nav_change or nav_risk" --alluredir=./allure-results
+
+# 运行边界场景用例 (用例 15~22)
+venv/bin/python -m pytest tests/test_gongzuotai.py -v -k "no_result or clear_restore or special_chars or rapid or reclick or without_conditions or view_switch" --alluredir=./allure-results
+
+# ==================== 边界场景用例说明 (用例 15~22) ====================
+
+# ---------- 15. test_workbench_search_no_result ----------
+# 场景: 在工作台搜索框输入不存在的名称 (如"不存在的功能XYZ")
+# 断言: 所有 8 个快捷入口均不可见 (无匹配项)
+# 覆盖维度: 空值/无结果搜索
+venv/bin/python -m pytest tests/test_gongzuotai.py::TestGongZuoTai::test_workbench_search_no_result -v --alluredir=./allure-results
+
+# ---------- 16. test_workbench_search_clear_restore ----------
+# 场景: 搜索"告警盯屏"后清空搜索框
+# 断言: 搜索时仅显示告警盯屏; 清空后所有 8 个快捷入口恢复可见
+# 覆盖维度: 搜索状态恢复
+venv/bin/python -m pytest tests/test_gongzuotai.py::TestGongZuoTai::test_workbench_search_clear_restore -v --alluredir=./allure-results
+
+# ---------- 17. test_workbench_search_special_chars ----------
+# 场景: 搜索含 XSS 和 SQL 注入字符的字符串 (<script>alert(1)</script>' OR 1=1 --)
+# 断言: 系统未崩溃, 搜索框仍可见; 清空后快捷入口恢复
+# 覆盖维度: 安全性/特殊字符输入
+venv/bin/python -m pytest tests/test_gongzuotai.py::TestGongZuoTai::test_workbench_search_special_chars -v --alluredir=./allure-results
+
+# ---------- 18. test_tab_rapid_switch ----------
+# 场景: 快速连续切换 5 次 Tab (工作台->待办中心->测点视图->工作台->待办中心)
+# 断言: 最终待办中心 Tab 为选中状态 (aria-selected=true)
+# 覆盖维度: 快速连续操作/竞态条件
+venv/bin/python -m pytest tests/test_gongzuotai.py::TestGongZuoTai::test_tab_rapid_switch -v --alluredir=./allure-results
+
+# ---------- 19. test_tab_reclick_selected ----------
+# 场景: 切换到待办中心 Tab 后重复点击 3 次
+# 断言: 选中状态保持 (aria-selected=true)
+# 覆盖维度: 重复点击已选中元素
+venv/bin/python -m pytest tests/test_gongzuotai.py::TestGongZuoTai::test_tab_reclick_selected -v --alluredir=./allure-results
+
+# ---------- 20. test_point_view_query_without_conditions ----------
+# 场景: 切换到测点视图, 不填写任何条件直接点击查询
+# 断言: 测点表格和分页控件仍可见 (返回全量数据)
+# 覆盖维度: 空条件查询
+venv/bin/python -m pytest tests/test_gongzuotai.py::TestGongZuoTai::test_point_view_query_without_conditions -v --alluredir=./allure-results
+
+# ---------- 21. test_todo_status_reclick_same ----------
+# 场景: 点击"审批中"状态标签后重复点击 3 次
+# 断言: 选中状态保持 (ant-radio-button-wrapper-checked 类)
+# 覆盖维度: 重复点击已选中状态标签
+venv/bin/python -m pytest tests/test_gongzuotai.py::TestGongZuoTai::test_todo_status_reclick_same -v --alluredir=./allure-results
+
+# ---------- 22. test_calendar_view_switch ----------
+# 场景: 日历年视图->月视图来回切换
+# 断言: 切换后对应按钮选中 (ant-radio-button-wrapper-checked); 日历组件和日期格子仍可见
+# 覆盖维度: 视图切换/状态保持
+venv/bin/python -m pytest tests/test_gongzuotai.py::TestGongZuoTai::test_calendar_view_switch -v --alluredir=./allure-results
+
+# 失败后重试 (上次失败的用例)
+venv/bin/python -m pytest tests/test_gongzuotai.py -v --lf --alluredir=./allure-results
+
+# 运行并打印详细日志
+venv/bin/python -m pytest tests/test_gongzuotai.py -v -s --alluredir=./allure-results
+
+# ==================== 生成/查看 Allure 报告 ====================
+
+# 生成临时报告并启动 web 服务 (默认端口随机)
+allure serve ./allure-results
+
+# 生成临时报告并启动 web 服务 (指定端口)
+allure serve ./allure-results --port 59882
+
+# 生成静态报告到目录
+allure generate ./allure-results -o ./allure-report --clean
+
+# 用默认浏览器打开静态报告
+open allure-report/index.html
+
+# 启动静态报告 web 服务
+allure open ./allure-report --port 59882
+
+# ==================== 清理/维护 ====================
+
+# 清理 allure 结果目录 (重新运行前)
+rm -rf ./allure-results
+
+# 清理 allure 静态报告目录
+rm -rf ./allure-report
+
+# 释放被占用的 allure 报告端口
+lsof -ti :59882 | xargs kill -9
+
+# 清理 pytest 缓存
+rm -rf .pytest_cache
+
+# ==================== Git 提交 ====================
+
+# 查看状态
+git status
+
+# 提交测试脚本
+git add tests/test_gongzuotai.py
+git commit -m "feat: 更新工作台菜单页面E2E测试脚本"
+
+# 提交全部改动
+git add .
+git commit -m "update: 更新测试脚本和配置"
+
+# 查看提交历史
+git log --oneline -10

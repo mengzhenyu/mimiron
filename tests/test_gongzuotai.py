@@ -70,11 +70,23 @@ def tab_point_view(page: Page):
     return page.get_by_role("tab", name="测点视图")
 
 
-def switch_to_tab(tab_locator):
-    """切换到指定 Tab 并校验其选中状态 (Ant Design 选中 Tab 含 aria-selected=true)"""
-    tab_locator.click()
-    # Antd Tabs 切换后 aria-selected 更新有延迟, 显式等待
-    expect(tab_locator).to_have_attribute("aria-selected", "true", timeout=10000)
+def switch_to_tab(tab_locator, max_retries: int = 3):
+    """
+    切换到指定 Tab 并校验其选中状态 (Ant Design 选中 Tab 含 aria-selected=true).
+    SPA 页面切换时 DOM 可能被重新挂载 (detached), 导致 click 失效或 aria-selected 未更新.
+    采用重试机制: 每次先等待元素可见, 点击后等待 aria-selected=true, 失败则重试.
+    """
+    last_error = None
+    for attempt in range(max_retries):
+        try:
+            tab_locator.wait_for(state="visible", timeout=10000)
+            tab_locator.click()
+            expect(tab_locator).to_have_attribute("aria-selected", "true", timeout=10000)
+            return
+        except Exception as e:
+            last_error = e
+            continue
+    raise last_error
 
 
 # ---------- 工作台 Tab 元素 ----------
