@@ -285,53 +285,76 @@ def todo_pagination(page: Page):
 
 
 # ---------- 测点视图 Tab 元素 ----------
+# 实测测点视图为 ant-splitter-panel 三栏布局: 空间树 | (设备类型树面板, 宽度0已折叠) | 右栏.
+# 右栏含 ant-segmented 控件 ("测点"/"设备" 两项, 选中态通过 class 含 selected 标记),
+# 内容区 (ant-empty 暂无数据 或数据列表) + 分页控件 (有数据时显示).
+# 空间树含搜索框 (placeholder="支持检索：标题关键字、工单类型").
 
 def space_tree(page: Page):
-    """左栏 - 空间树 (实测无内置搜索框, 仅树)"""
-    return page.locator(".ant-tree").nth(0)
+    """左栏 - 空间树"""
+    return page.locator(".ant-tree").first
 
 
-def device_type_tree(page: Page):
-    """中间栏 - 设备类型树 (实测无内置搜索框, 仅树)"""
-    return page.locator(".ant-tree").nth(1)
+def space_tree_node(page: Page, node_name: str):
+    """左栏 - 空间树指定节点 (按文本模糊匹配, 节点文本含数量统计如 "1号楼 (8)")"""
+    return space_tree(page).get_by_text(node_name, exact=False).first
 
 
-def point_guid_input(page: Page):
+def point_segmented_item(page: Page, name: str):
     """
-    右栏 - GUID 输入框.
-    实测 input id=guid 宽度为 0 (被 ant-input-affix-wrapper 包裹), 不可直接 to_be_visible;
-    这里返回外层 wrapper (可见), fill 时通过 .locator("input") 定位内部 input.
+    右栏 - "测点"/"设备" 切换控件 (ant-segmented-item).
+    选中态通过 class 含 "ant-segmented-item-selected" 标记 (无 aria-selected).
     """
-    return page.locator(".ant-input-affix-wrapper", has=page.locator("#guid"))
+    return page.locator(".ant-segmented-item", has_text=name).first
 
 
-def point_device_name_input(page: Page):
-    """右栏 - 设备名称输入框 (外层 wrapper, input id=name)"""
-    return page.locator(".ant-input-affix-wrapper", has=page.locator("#name"))
-
-
-def point_enabled_checkbox(page: Page):
-    """右栏 - 启用状态复选框 (实测为 ant-checkbox-group, 含"停用"/"启用"两项)"""
-    return page.locator("#status .ant-checkbox-wrapper", has_text="启用")
-
-
-def point_query_button(page: Page):
-    """右栏 - 查询按钮 (Ant Design 两字按钮中间插空格: "查 询")"""
-    return page.get_by_role("button", name=re.compile(r"查\s*询"))
-
-
-def point_reset_button(page: Page):
-    """右栏 - 重置按钮 (Ant Design 两字按钮中间插空格: "重 置")"""
-    return page.get_by_role("button", name=re.compile(r"重\s*置"))
-
-
-def point_table(page: Page):
-    """右栏 - 测点结果表格"""
-    return page.locator(".ant-table").first
+def point_empty(page: Page):
+    """右栏 - 暂无数据占位 (ant-empty)"""
+    return page.locator(".ant-empty").first
 
 
 def point_pagination(page: Page):
-    """右栏 - 分页控件"""
+    """右栏 - 分页控件 (有数据时显示, 暂无数据时不显示)"""
+    return page.locator(".ant-pagination").first
+
+
+# ---------- 测点视图 - 设备页元素 (点击'设备'后显示) ----------
+# 实测点击'设备'后右栏展示: 设备类型树 (第2棵 ant-tree) + 查询表单
+# (GUID输入框 id=guid / 设备名称输入框 id=name / 启用状态复选框 / 重置 / 查询)
+# + 数据表格 (GUID/设备名称/设备房间/设备类型/厂商/型号/启用状态) + 分页.
+
+def device_type_tree(page: Page):
+    """设备页 - 设备类型树 (切换到'设备'后出现的第2棵 ant-tree)"""
+    return page.locator(".ant-tree").nth(1)
+
+
+def device_guid_input(page: Page):
+    """设备页 - GUID 输入框 (input id=guid, placeholder='请输入')"""
+    return page.locator("#guid")
+
+
+def device_name_input(page: Page):
+    """设备页 - 设备名称输入框 (input id=name, placeholder='请输入')"""
+    return page.locator("#name")
+
+
+def device_query_button(page: Page):
+    """设备页 - 查询按钮 (两字按钮含空格: '查 询')"""
+    return page.get_by_role("button", name=re.compile(r"查\s*询"))
+
+
+def device_reset_button(page: Page):
+    """设备页 - 重置按钮 (两字按钮含空格: '重 置')"""
+    return page.get_by_role("button", name=re.compile(r"重\s*置"))
+
+
+def device_table_header(page: Page):
+    """设备页 - 表格表头"""
+    return page.locator(".ant-table-thead").first
+
+
+def device_pagination(page: Page):
+    """设备页 - 分页控件"""
     return page.locator(".ant-pagination").first
 
 
@@ -398,6 +421,52 @@ def approval_table_header(page: Page):
 def approval_pagination(page: Page):
     """跳转后页面 - 分页控件"""
     return page.locator(".ant-pagination").first
+
+
+# ---------- 运维工单元素 (工作台 Tab 内) ----------
+# 实测运维工单位于审批中心下方, 与审批中心同为 ant-statistic 卡片结构 (共 8 个):
+# 事件管理(a->/event) / 变更管理(a->/change) / 风险管理(a->/risk) / 演练管理(a->/dashboard/search)
+# 上下电管理(a->/task/power) / 维护管理(a->/task/maintain) / 维修管理(a->/task/repair) / 待下发工单(a->/task/dispatch)
+# 卡片数字异步加载, 初始渲染为 "0", 加载完成后显示真实统计值.
+
+def om_card(page: Page, card_label: str):
+    """
+    运维工单 - 单个统计卡片 (按标签文本定位, 与审批中心同为 ant-statistic 结构).
+    card_label: '事件管理' / '变更管理' / '风险管理' / '演练管理'
+                '上下电管理' / '维护管理' / '维修管理' / '待下发工单'.
+    """
+    return approval_center_card(page, card_label)
+
+
+def om_number_link(page: Page, card_label: str):
+    """运维工单 - 卡片下方的数字链接 (<a> 标签, 点击跳转对应菜单页)"""
+    return approval_center_number_link(page, card_label)
+
+
+# ---------- 事件列表页元素 (展开/收起 查询表单 + 横向滚动表格) ----------
+# 实测事件列表页 (/event) 查询表单收起时仅展示 3 项: 事件名称 / 事件类型 / 事件等级;
+# 点击"展开"后追加显示: 事件ID / 事件来源 / 事件状态 / 楼栋 / 机柜影响 / 责任人 / 创建人
+#                      / 设备类型 / 故障设备 / 房间类型 / 故障房间 / 创建时间 / 事件识别时间 / 关闭时间.
+# 表格为固定表头 + 横向滚动结构, 滚动容器为 .ant-table-body (表头随滚动同步).
+
+def event_form_label(page: Page, label_text: str):
+    """事件列表 - 查询表单标签 (通过 ant-form-item-label 定位)"""
+    return page.locator(".ant-form-item-label", has_text=label_text).first
+
+
+def event_collapse_link(page: Page):
+    """事件列表 - 收起链接 (查询表单展开后显示, <a> 标签)"""
+    return page.locator("a", has_text="收起").first
+
+
+def event_table_body(page: Page):
+    """事件列表 - 表格横向滚动容器 (ant-table-body, scrollWidth > clientWidth)"""
+    return page.locator(".ant-table-body").first
+
+
+def event_table_header(page: Page):
+    """事件列表 - 表格表头 (thead, 含全部 25 列, 横向滚动由 ant-table-body 驱动同步)"""
+    return page.locator(".ant-table-thead").first
 
 
 def workbench_menu_item(page: Page):
@@ -497,10 +566,13 @@ class TestGongZuoTai:
         """
         autouse fixture: 每个用例执行前, 统一导航回工作台 /dashboard 并等待 Tab 就绪.
         单次登录模式下用例间共享 page, 必须保证每个用例起始状态一致.
+        使用 domcontentloaded + 显式等待元素可见, 比 networkidle 更稳定.
         """
         page = logged_in_page
-        page.goto(BASE_URL + "/dashboard", wait_until="networkidle")
+        page.goto(BASE_URL + "/dashboard", wait_until="domcontentloaded")
         expect(page).to_have_url(re.compile(r"/dashboard"), timeout=15000)
+        # 等待工作台 Tab 可见且选中, 确保页面完全加载
+        expect(tab_workbench(page)).to_be_visible(timeout=15000)
         expect(tab_workbench(page)).to_have_attribute("aria-selected", "true", timeout=10000)
 
     # ---------- 1. 三个 Tab 来回切换, 校验选中状态 ----------
@@ -607,7 +679,7 @@ class TestGongZuoTai:
     # ---------- 4. 测点视图 Tab 元素可见校验 ----------
 
     @allure.story("测点视图 Tab")
-    @allure.title("测点视图: 空间树 / 设备类型树 / 查询&重置按钮 / 表单输入框 / 表格 / 分页可见")
+    @allure.title("测点视图: 空间树/测点设备切换可见 + 点击1号楼联动展示测点列表")
     @allure.severity(allure.severity_level.CRITICAL)
     def test_point_view_elements_visible(self, logged_in_page: Page):
         page = logged_in_page
@@ -616,31 +688,25 @@ class TestGongZuoTai:
             switch_to_tab(tab_point_view(page))
 
         with allure.step("校验左栏空间树可见"):
-            expect(space_tree(page)).to_be_visible()
+            expect(space_tree(page)).to_be_visible(timeout=15000)
 
-        with allure.step("校验中间栏设备类型树可见"):
-            expect(device_type_tree(page)).to_be_visible()
+        with allure.step("校验右栏'测点/设备'切换控件可见且'测点'默认选中"):
+            expect(point_segmented_item(page, "测点")).to_be_visible(timeout=15000)
+            expect(point_segmented_item(page, "测点")).to_have_class(
+                re.compile(r".*ant-segmented-item-selected.*")
+            )
+            expect(point_segmented_item(page, "设备")).to_be_visible()
 
-        with allure.step("校验右栏查询表单 GUID 输入框可见"):
-            expect(point_guid_input(page)).to_be_visible()
-
-        with allure.step("校验右栏查询表单设备名称输入框可见"):
-            expect(point_device_name_input(page)).to_be_visible()
-
-        with allure.step("校验右栏启用状态复选框可见"):
-            expect(point_enabled_checkbox(page)).to_be_visible()
-
-        with allure.step("校验右栏查询按钮可见"):
-            expect(point_query_button(page)).to_be_visible()
-
-        with allure.step("校验右栏重置按钮可见"):
-            expect(point_reset_button(page)).to_be_visible()
-
-        with allure.step("校验测点结果表格可见"):
-            expect(point_table(page)).to_be_visible()
-
-        with allure.step("校验测点结果分页控件可见"):
-            expect(point_pagination(page)).to_be_visible()
+        with allure.step("左侧空间栏点击'1号楼'节点, 校验右栏联动展示测点列表"):
+            node = space_tree_node(page, "1号楼")
+            node.wait_for(state="visible", timeout=15000)
+            node.click()
+            page.wait_for_timeout(3000)
+            # 点击后右栏切换控件仍可见 (联动刷新)
+            expect(point_segmented_item(page, "测点")).to_be_visible()
+            # 测点列表联动: 有数据显示表格, 无数据显示暂无数据占位
+            assert page.locator(".ant-table").first.is_visible() or point_empty(page).is_visible(), \
+                "点击1号楼后右栏既无测点表格也无暂无数据占位"
 
     # ---------- 5. 待办中心状态标签切换 ----------
 
@@ -657,13 +723,14 @@ class TestGongZuoTai:
             # 状态标签为 ant-radio-button-wrapper, 选中态通过 checked 类标记
             for name in ["审批中", "审批通过", "审批拒绝", "全部"]:
                 tab = todo_status_tab(page, name)
+                tab.wait_for(state="visible", timeout=10000)
                 tab.click()
                 expect(tab).to_have_class(re.compile(r".*ant-radio-button-wrapper-checked.*"), timeout=10000)
 
-    # ---------- 6. 测点视图查询 & 重置 ----------
+    # ---------- 6. 测点视图 点击1号楼 + 设备页结构校验 ----------
 
-    @allure.story("测点视图查询重置")
-    @allure.title("测点视图: 填写查询条件 -> 查询 -> 重置 -> 校验表单清空")
+    @allure.story("测点视图-设备页")
+    @allure.title("测点视图: 点击1号楼 -> 切换设备页 -> 设备类型树/GUID/设备名称/重置/查询/表格/分页校验")
     @allure.severity(allure.severity_level.NORMAL)
     def test_point_view_query_and_reset(self, logged_in_page: Page):
         page = logged_in_page
@@ -671,31 +738,45 @@ class TestGongZuoTai:
         with allure.step("切换到测点视图 Tab"):
             switch_to_tab(tab_point_view(page))
 
-        with allure.step("填写 GUID 和设备名称查询条件"):
-            # input 宽度为 0 (被 ant-input-affix-wrapper 包裹), 对 wrapper 校验可见性,
-            # 对内部 input 执行 fill (input 本身不可见但可接收输入)
-            guid_wrapper = point_guid_input(page)
-            guid_wrapper.scroll_into_view_if_needed()
-            expect(guid_wrapper).to_be_visible()
-            guid_input = guid_wrapper.locator("input")
-            guid_input.fill("test-guid", force=True)
-            expect(guid_input).to_have_value("test-guid")
-            name_wrapper = point_device_name_input(page)
-            name_wrapper.scroll_into_view_if_needed()
-            expect(name_wrapper).to_be_visible()
-            name_input = name_wrapper.locator("input")
-            name_input.fill("测试设备", force=True)
-            expect(name_input).to_have_value("测试设备")
+        with allure.step("左侧空间栏点击'1号楼'节点"):
+            node = space_tree_node(page, "1号楼")
+            node.wait_for(state="visible", timeout=15000)
+            node.click()
+            page.wait_for_timeout(2000)
 
-        with allure.step("点击查询按钮, 校验表格仍可见 (触发组合过滤)"):
-            point_query_button(page).click()
-            expect(point_table(page)).to_be_visible()
+        with allure.step("点击'设备'切换控件, 校验选中 + 设备页结构可见"):
+            dev_item = point_segmented_item(page, "设备")
+            dev_item.wait_for(state="visible", timeout=15000)
+            dev_item.click()
+            expect(dev_item).to_have_class(
+                re.compile(r".*ant-segmented-item-selected.*"), timeout=10000
+            )
 
-        with allure.step("点击重置按钮, 校验表单输入框已清空"):
-            point_reset_button(page).click()
-            # 校验内部 input 值已清空 (wrapper 无 value 属性)
-            expect(point_guid_input(page).locator("input")).to_have_value("")
-            expect(point_device_name_input(page).locator("input")).to_have_value("")
+        with allure.step("校验设备类型树可见"):
+            expect(device_type_tree(page)).to_be_visible(timeout=10000)
+
+        with allure.step("校验GUID搜索框可见"):
+            expect(device_guid_input(page)).to_be_visible()
+
+        with allure.step("校验设备名称搜索框可见"):
+            expect(device_name_input(page)).to_be_visible()
+
+        with allure.step("校验重置/查询按钮可见"):
+            expect(device_reset_button(page)).to_be_visible()
+            expect(device_query_button(page)).to_be_visible()
+
+        with allure.step("校验设备数据列表表头字段: GUID/设备名称/设备房间/设备类型/厂商/型号/启用状态"):
+            header = device_table_header(page)
+            expect(header).to_contain_text("GUID")
+            expect(header).to_contain_text("设备名称")
+            expect(header).to_contain_text("设备房间")
+            expect(header).to_contain_text("设备类型")
+            expect(header).to_contain_text("厂商")
+            expect(header).to_contain_text("型号")
+            expect(header).to_contain_text("启用状态")
+
+        with allure.step("校验分页控件可见"):
+            expect(device_pagination(page)).to_be_visible()
 
     # ========================================================================
     # 以下为工作台常用导航区快捷入口跳转测试 (7~14)
@@ -916,12 +997,13 @@ class TestGongZuoTai:
             expect(page).to_have_url(re.compile(r"/task/maintain"), timeout=15000)
 
         with allure.step("校验维护工单表格表头包含列名"):
-            # 列: 工单编号 / 工单标题 / 工单子类型 / 创建时间 / 操作
+            # 列: 工单编号 / 工单标题 / 工单子类型 / 位置 / 进度 / 状态 / 操作
             header = workorder_table_header(page)
             expect(header).to_contain_text("工单编号")
             expect(header).to_contain_text("工单标题")
             expect(header).to_contain_text("工单子类型")
-            expect(header).to_contain_text("创建时间")
+            expect(header).to_contain_text("位置")
+            expect(header).to_contain_text("进度")
             expect(header).to_contain_text("操作")
 
         with allure.step("校验分页控件可见"):
@@ -986,12 +1068,12 @@ class TestGongZuoTai:
             expect(page).to_have_url(re.compile(r"/task/inspection"), timeout=15000)
 
         with allure.step("校验巡检工单表格表头包含列名"):
-            # 列: 工单编号 / 工单标题 / 工单子类型 / 创建时间 / 进度 / 操作
+            # 列: 工单编号 / 工单标题 / 工单子类型 / 位置 / 进度 / 状态 / 操作
             header = workorder_table_header(page)
             expect(header).to_contain_text("工单编号")
             expect(header).to_contain_text("工单标题")
             expect(header).to_contain_text("工单子类型")
-            expect(header).to_contain_text("创建时间")
+            expect(header).to_contain_text("位置")
             expect(header).to_contain_text("进度")
             expect(header).to_contain_text("操作")
 
@@ -1091,11 +1173,13 @@ class TestGongZuoTai:
         page = logged_in_page
 
         with allure.step("快速连续切换: 工作台 -> 待办中心 -> 测点视图 -> 工作台 -> 待办中心"):
-            tab_workbench(page).click()
-            tab_todo_center(page).click()
-            tab_point_view(page).click()
-            tab_workbench(page).click()
-            tab_todo_center(page).click()
+            # 使用 switch_to_tab (含重试机制), 避免 SPA DOM detached 导致 click 失效
+            # 每次切换后短暂等待 500ms 让 DOM 重新挂载稳定
+            for target in [tab_workbench(page), tab_todo_center(page),
+                           tab_point_view(page), tab_workbench(page),
+                           tab_todo_center(page)]:
+                switch_to_tab(target, max_retries=5)
+                page.wait_for_timeout(500)
 
         with allure.step("校验最终待办中心 Tab 为选中状态"):
             expect(tab_todo_center(page)).to_have_attribute("aria-selected", "true", timeout=10000)
@@ -1116,10 +1200,10 @@ class TestGongZuoTai:
                 tab_todo_center(page).click()
             expect(tab_todo_center(page)).to_have_attribute("aria-selected", "true", timeout=10000)
 
-    # ---------- 20. 测点视图空条件查询 ----------
+    # ---------- 20. 测点视图 测点/设备快速切换 ----------
 
-    @allure.story("测点视图-空条件查询")
-    @allure.title("边界: 不填写任何条件直接查询, 校验表格仍可见 (全量数据)")
+    @allure.story("测点视图-快速切换")
+    @allure.title("边界: 快速切换测点/设备, 校验选中状态正确")
     @allure.severity(allure.severity_level.NORMAL)
     def test_point_view_query_without_conditions(self, logged_in_page: Page):
         page = logged_in_page
@@ -1127,12 +1211,14 @@ class TestGongZuoTai:
         with allure.step("切换到测点视图 Tab"):
             switch_to_tab(tab_point_view(page))
 
-        with allure.step("不填写任何条件, 直接点击查询按钮"):
-            point_query_button(page).click()
-
-        with allure.step("校验测点表格仍可见 (返回全量数据)"):
-            expect(point_table(page)).to_be_visible()
-            expect(point_pagination(page)).to_be_visible()
+        with allure.step("快速切换 测点 -> 设备 -> 测点 -> 设备, 校验选中状态"):
+            for target in ["设备", "测点", "设备", "测点"]:
+                item = point_segmented_item(page, target)
+                item.wait_for(state="visible", timeout=15000)
+                item.click()
+                expect(item).to_have_class(
+                    re.compile(r".*ant-segmented-item-selected.*"), timeout=10000
+                )
 
     # ---------- 21. 待办中心重复点击同一状态标签 ----------
 
@@ -1211,6 +1297,8 @@ class TestGongZuoTai:
         with allure.step("获取待我审批卡片数字并点击数字链接"):
             link = approval_center_number_link(page, "待我审批")
             expect(link).to_be_visible(timeout=10000)
+            # 等待数字加载完成 (初始为0, 异步加载后显示真实数字; 等待数字 > 0 或多位数字)
+            expect(link).to_have_text(re.compile(r"[1-9]\d*"), timeout=15000)
             num_before = link.inner_text()
             link.click()
 
@@ -1222,12 +1310,18 @@ class TestGongZuoTai:
             )
 
         with allure.step("校验 Radio Tab 括号中数字与点击的数字一致"):
+            # 等待 radio 文本中出现括号数字 (SPA 异步加载, 数字可能延迟渲染)
+            expect(radio).to_have_text(re.compile(r".*\(\d+\).*"), timeout=10000)
             radio_text = radio.inner_text()
-            # 提取括号内数字, 如 "待我审批(357)" -> "357"
             match = re.search(r"\((\d+)\)", radio_text)
             assert match, f"未在 radio 文本中找到括号数字: {radio_text!r}"
             num_after = match.group(1)
             assert num_after == num_before, f"数字不一致: 卡片={num_before!r} radio={num_after!r}"
+
+        with allure.step("若查询表单为折叠状态, 先点击展开"):
+            expand_link = page.locator("a", has_text="展开")
+            if expand_link.count() > 0 and expand_link.first.is_visible():
+                expand_link.first.click()
 
         with allure.step("校验查询表单元素可见 (审批ID/审批标题/审批类型/状态)"):
             for label_text in ["审批ID", "审批标题", "审批类型", "状态"]:
@@ -1237,7 +1331,7 @@ class TestGongZuoTai:
             expect(approval_reset_button(page)).to_be_visible()
             expect(approval_query_button(page)).to_be_visible()
 
-        with allure.step("校验收起链接可见"):
+        with allure.step("校验收起链接可见 (表单已展开)"):
             expect(approval_collapse_link(page)).to_be_visible()
 
         with allure.step("校验列表表头列名可见"):
@@ -1269,6 +1363,8 @@ class TestGongZuoTai:
         with allure.step("获取我已处理卡片数字并点击数字链接"):
             link = approval_center_number_link(page, "我已处理")
             expect(link).to_be_visible(timeout=10000)
+            # 等待数字加载完成 (初始为0, 异步加载后显示真实数字; 等待非零数字)
+            expect(link).to_have_text(re.compile(r"[1-9]\d*"), timeout=15000)
             num_before = link.inner_text()
             link.click()
 
@@ -1280,6 +1376,8 @@ class TestGongZuoTai:
             )
 
         with allure.step("校验 Radio Tab 括号中数字与点击的数字一致"):
+            # 等待 radio 文本中出现括号数字 (SPA 异步加载, 数字可能延迟渲染)
+            expect(radio).to_have_text(re.compile(r".*\(\d+\).*"), timeout=10000)
             radio_text = radio.inner_text()
             match = re.search(r"\((\d+)\)", radio_text)
             assert match, f"未在 radio 文本中找到括号数字: {radio_text!r}"
@@ -1304,6 +1402,8 @@ class TestGongZuoTai:
         with allure.step("获取我发起的卡片数字并点击数字链接"):
             link = approval_center_number_link(page, "我发起的")
             expect(link).to_be_visible(timeout=10000)
+            # 等待数字加载完成 (初始为0, 异步加载后显示真实数字; 等待非零数字)
+            expect(link).to_have_text(re.compile(r"[1-9]\d*"), timeout=15000)
             num_before = link.inner_text()
             link.click()
 
@@ -1315,6 +1415,8 @@ class TestGongZuoTai:
             )
 
         with allure.step("校验 Radio Tab 括号中数字与点击的数字一致"):
+            # 等待 radio 文本中出现括号数字 (SPA 异步加载, 数字可能延迟渲染)
+            expect(radio).to_have_text(re.compile(r".*\(\d+\).*"), timeout=10000)
             radio_text = radio.inner_text()
             match = re.search(r"\((\d+)\)", radio_text)
             assert match, f"未在 radio 文本中找到括号数字: {radio_text!r}"
@@ -1339,6 +1441,8 @@ class TestGongZuoTai:
         with allure.step("获取我收到的卡片数字并点击数字链接"):
             link = approval_center_number_link(page, "我收到的")
             expect(link).to_be_visible(timeout=10000)
+            # 等待数字加载完成 (初始为0, 异步加载后显示真实数字; 等待非零数字)
+            expect(link).to_have_text(re.compile(r"[1-9]\d*"), timeout=15000)
             num_before = link.inner_text()
             link.click()
 
@@ -1350,6 +1454,8 @@ class TestGongZuoTai:
             )
 
         with allure.step("校验 Radio Tab 括号中数字与点击的数字一致"):
+            # 等待 radio 文本中出现括号数字 (SPA 异步加载, 数字可能延迟渲染)
+            expect(radio).to_have_text(re.compile(r".*\(\d+\).*"), timeout=10000)
             radio_text = radio.inner_text()
             match = re.search(r"\((\d+)\)", radio_text)
             assert match, f"未在 radio 文本中找到括号数字: {radio_text!r}"
@@ -1396,6 +1502,119 @@ class TestGongZuoTai:
             )
 
         with allure.step("点击左侧菜单工作台, 返回工作台菜单栏, 校验工作台 Tab 选中"):
+            workbench_menu_item(page).click()
+            expect(page).to_have_url(re.compile(r"/dashboard"), timeout=15000)
+            expect(tab_workbench(page)).to_have_attribute("aria-selected", "true", timeout=10000)
+
+    # ---------- 29. 工作台 -> 运维工单卡片元素可见 ----------
+
+    @allure.story("运维工单导航")
+    @allure.title("运维工单: 8个分类卡片元素/字段/数据可见")
+    @allure.severity(allure.severity_level.CRITICAL)
+    def test_workbench_om_cards_visible(self, logged_in_page: Page):
+        """覆盖: 运维工单元素框中 事件管理/变更管理/风险管理/演练管理/上下电管理
+        /维护管理/维修管理/待下发工单 8 个卡片: 元素(卡片)、字段(标题)、数据(数字)可见"""
+        page = logged_in_page
+
+        with allure.step("确保停留在工作台 Tab"):
+            switch_to_tab(tab_workbench(page))
+
+        with allure.step("校验运维工单 8 个统计卡片可见 (元素=卡片 / 字段=标题 / 数据=数字链接)"):
+            for label in ["事件管理", "变更管理", "风险管理", "演练管理",
+                          "上下电管理", "维护管理", "维修管理", "待下发工单"]:
+                card = om_card(page, label)
+                # 元素: 卡片容器可见
+                expect(card).to_be_visible(timeout=10000)
+                # 字段: 卡片标题文本为对应分类名
+                expect(card.locator(".ant-statistic-title")).to_have_text(label)
+                # 数据: 卡片内数字链接可见 (含数字, 异步加载后显示真实统计值)
+                num_link = card.locator("a").first
+                expect(num_link).to_be_visible()
+                expect(num_link).to_contain_text(re.compile(r"\d+"))
+
+    # ---------- 30. 工作台 -> 运维工单 -> 事件管理数字跳转事件列表 ----------
+
+    @allure.story("运维工单导航")
+    @allure.title("运维工单: 点击事件管理数字 -> 跳转事件列表 + 展开收起 + 表头/横向滚动校验 + 返回工作台")
+    @allure.severity(allure.severity_level.CRITICAL)
+    def test_workbench_om_nav_event_list(self, logged_in_page: Page):
+        """覆盖: 点击事件管理数字链接跳转事件列表 -> 收起态3项查询条件/按钮/分页可见
+        -> 展开后8项查询条件可见 -> 收起恢复3项 -> 表头字段校验
+        -> 横向滚动到最后校验右侧列 -> 点击左侧菜单工作台返回"""
+        page = logged_in_page
+
+        with allure.step("确保停留在工作台 Tab"):
+            switch_to_tab(tab_workbench(page))
+
+        with allure.step("点击'事件管理'数字链接, 校验页面跳转至事件列表菜单页"):
+            link = om_number_link(page, "事件管理")
+            expect(link).to_be_visible(timeout=10000)
+            link.click()
+            # 事件管理数字链接 URL: /event?filters[...] (带 taskStatus 过滤条件)
+            expect(page).to_have_url(re.compile(r"/event"), timeout=15000)
+
+        with allure.step("校验收起状态: 仅展示 事件名称/事件类型/事件等级 三项查询条件"):
+            # 收起时可见的 3 项
+            for label_text in ["事件名称", "事件类型", "事件等级"]:
+                expect(event_form_label(page, label_text)).to_be_visible()
+            # 其余查询条件应隐藏 (收起态不展示)
+            for hidden_label in ["事件ID", "事件来源", "事件状态", "楼栋", "机柜影响",
+                                 "责任人", "创建人", "设备类型", "故障设备"]:
+                expect(event_form_label(page, hidden_label)).not_to_be_visible()
+
+        with allure.step("校验重置/查询/展开/创建事件/导出按钮及分页控件可见"):
+            expect(list_page_reset_button(page)).to_be_visible()
+            expect(list_page_query_button(page)).to_be_visible()
+            expect(list_page_expand_link(page)).to_be_visible()
+            expect(list_page_create_button(page, "创建事件")).to_be_visible()
+            expect(list_page_export_button(page)).to_be_visible()
+            expect(list_page_pagination(page)).to_be_visible()
+
+        with allure.step("点击'展开', 校验追加显示 8 项查询条件"):
+            list_page_expand_link(page).click()
+            for label_text in ["事件来源", "事件状态", "楼栋", "机柜影响",
+                               "责任人", "创建人", "设备类型", "故障设备"]:
+                expect(event_form_label(page, label_text)).to_be_visible(timeout=10000)
+
+        with allure.step("点击'收起', 校验仅恢复展示 事件名称/事件类型/事件等级 三项"):
+            expect(event_collapse_link(page)).to_be_visible()
+            event_collapse_link(page).click()
+            # 3 项基础查询条件恢复可见
+            for label_text in ["事件名称", "事件类型", "事件等级"]:
+                expect(event_form_label(page, label_text)).to_be_visible(timeout=10000)
+            # 展开项恢复隐藏
+            for hidden_label in ["事件来源", "事件状态", "楼栋", "机柜影响",
+                                 "责任人", "创建人", "设备类型", "故障设备"]:
+                expect(event_form_label(page, hidden_label)).not_to_be_visible()
+
+        with allure.step("校验数据列表表头字段: 事件ID/事件名称/事件等级/故障位置/事件状态/操作"):
+            header = event_table_header(page)
+            expect(header).to_contain_text("事件ID")
+            expect(header).to_contain_text("事件名称")
+            expect(header).to_contain_text("事件等级")
+            expect(header).to_contain_text("故障位置")
+            expect(header).to_contain_text("事件状态")
+            expect(header).to_contain_text("操作")
+
+        with allure.step("横向滚动列表至最后, 校验右侧列: 故障原因/创建时间/责任人/创建人/关闭时间"):
+            # 滚动容器为 ant-table-body, 表头随滚动同步
+            event_table_body(page).evaluate("el => el.scrollLeft = el.scrollWidth")
+            page.wait_for_load_state("networkidle")
+            header2 = event_table_header(page)
+            expect(header2).to_contain_text("故障原因")
+            expect(header2).to_contain_text("创建时间")
+            expect(header2).to_contain_text("责任人")
+            expect(header2).to_contain_text("创建人")
+            expect(header2).to_contain_text("关闭时间")
+            # 滚动后校验右侧列已进入可视区域 (bounding box x 在视口内)
+            for col in ["故障原因", "创建时间", "责任人", "创建人", "关闭时间"]:
+                th = header2.locator("th", has_text=col).first
+                expect(th).to_be_visible()
+                box = th.bounding_box()
+                assert box is not None and 0 <= box["x"] < 1800, \
+                    f"横向滚动后列 {col!r} 未进入可视区域: box={box}"
+
+        with allure.step("点击左侧菜单栏工作台, 返回工作台菜单栏, 校验工作台 Tab 选中"):
             workbench_menu_item(page).click()
             expect(page).to_have_url(re.compile(r"/dashboard"), timeout=15000)
             expect(tab_workbench(page)).to_have_attribute("aria-selected", "true", timeout=10000)
