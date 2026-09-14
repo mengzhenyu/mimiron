@@ -70,18 +70,19 @@ def tab_point_view(page: Page):
     return page.get_by_role("tab", name="测点视图")
 
 
-def switch_to_tab(tab_locator, max_retries: int = 3):
+def switch_to_tab(tab_locator, max_retries: int = 5):
     """
     切换到指定 Tab 并校验其选中状态 (Ant Design 选中 Tab 含 aria-selected=true).
     SPA 页面切换时 DOM 可能被重新挂载 (detached), 导致 click 失效或 aria-selected 未更新.
     采用重试机制: 每次先等待元素可见, 点击后等待 aria-selected=true, 失败则重试.
+    完整套件运行时 DOM 加载可能较慢, 超时设为 15s.
     """
     last_error = None
     for attempt in range(max_retries):
         try:
-            tab_locator.wait_for(state="visible", timeout=10000)
+            tab_locator.wait_for(state="visible", timeout=15000)
             tab_locator.click()
-            expect(tab_locator).to_have_attribute("aria-selected", "true", timeout=10000)
+            expect(tab_locator).to_have_attribute("aria-selected", "true", timeout=15000)
             return
         except Exception as e:
             last_error = e
@@ -176,7 +177,9 @@ def navigate_back_to_workbench(page: Page):
 
 def list_page_table_header(page: Page):
     """列表页 - 表格表头 (Ant Design Table thead)"""
-    return page.locator(".ant-table-thead").first
+    header = page.locator(".ant-table-thead").first
+    header.wait_for(state="visible", timeout=15000)
+    return header
 
 
 def list_page_pagination(page: Page):
@@ -237,7 +240,9 @@ def exam_form_label(page: Page, label_text: str):
 
 def workorder_table_header(page: Page):
     """工单页面 - 表格表头"""
-    return page.locator(".ant-table-thead").first
+    header = page.locator(".ant-table-thead").first
+    header.wait_for(state="visible", timeout=15000)
+    return header
 
 
 def workorder_pagination(page: Page):
@@ -795,8 +800,11 @@ class TestGongZuoTai:
 
         with allure.step("在常用导航搜索框输入'告警盯屏'"):
             search = workbench_search_input(page)
+            search.wait_for(state="visible", timeout=10000)
+            expect(search).to_be_editable(timeout=10000)
             search.click()
             search.fill("告警盯屏")
+            expect(search).to_have_value("告警盯屏")
 
         with allure.step("校验搜索结果只显示告警盯屏"):
             # 搜索后, 快捷导航区仅保留匹配项 "告警盯屏"
@@ -806,6 +814,7 @@ class TestGongZuoTai:
                 expect(quick_nav_item(page, name)).not_to_be_visible()
 
         with allure.step("点击'告警盯屏', 校验页面跳转至告警盯屏菜单栏"):
+            quick_nav_item(page, "告警盯屏").wait_for(state="visible", timeout=10000)
             quick_nav_item(page, "告警盯屏").click()
             # 告警盯屏 URL: /mon/alarm-dashboard/kanban
             expect(page).to_have_url(re.compile(r"/mon/alarm-dashboard"), timeout=15000)
@@ -880,6 +889,7 @@ class TestGongZuoTai:
             quick_nav_item(page, "事件列表").click()
             # 事件列表 URL: /event
             expect(page).to_have_url(re.compile(r"/event"), timeout=15000)
+            page.wait_for_load_state("networkidle")
 
         with allure.step("校验事件列表表格表头包含列名"):
             # 列: 事件ID / 事件名称 / 事件描述 / 事件类别 / 事件状态 / 操作
@@ -919,6 +929,7 @@ class TestGongZuoTai:
             quick_nav_item(page, "变更列表").click()
             # 变更列表 URL: /change
             expect(page).to_have_url(re.compile(r"/change"), timeout=15000)
+            page.wait_for_load_state("networkidle")
 
         with allure.step("校验变更列表表格表头包含列名"):
             # 列: 变更ID / 变更标题(事件标题) / 变更等级 / 变更专业 / 变更状态 / 操作
@@ -958,6 +969,7 @@ class TestGongZuoTai:
             quick_nav_item(page, "风险登记册").click()
             # 风险登记册 URL: /risk
             expect(page).to_have_url(re.compile(r"/risk"), timeout=15000)
+            page.wait_for_load_state("networkidle")
 
         with allure.step("校验风险登记册表格表头包含列名"):
             # 列: 风险ID / 风险标题 / 风险等级 / 风险类型 / 风险状态 / 措施进度 / 操作
@@ -995,6 +1007,7 @@ class TestGongZuoTai:
             quick_nav_item(page, "维护工单").click()
             # 维护工单 URL: /task/maintain
             expect(page).to_have_url(re.compile(r"/task/maintain"), timeout=15000)
+            page.wait_for_load_state("networkidle")
 
         with allure.step("校验维护工单表格表头包含列名"):
             # 列: 工单编号 / 工单标题 / 工单子类型 / 位置 / 进度 / 状态 / 操作
@@ -1031,6 +1044,7 @@ class TestGongZuoTai:
             quick_nav_item(page, "上下电工单").click()
             # 上下电工单 URL: /task/power
             expect(page).to_have_url(re.compile(r"/task/power"), timeout=15000)
+            page.wait_for_load_state("networkidle")
 
         with allure.step("校验上下电工单表格表头包含列名"):
             # 列: 工单编号 / 工单标题 / 工单子类型 / 创建时间 / 进度 / 操作
@@ -1066,6 +1080,7 @@ class TestGongZuoTai:
             quick_nav_item(page, "巡检工单").click()
             # 巡检工单 URL: /task/inspection
             expect(page).to_have_url(re.compile(r"/task/inspection"), timeout=15000)
+            page.wait_for_load_state("networkidle")
 
         with allure.step("校验巡检工单表格表头包含列名"):
             # 列: 工单编号 / 工单标题 / 工单子类型 / 位置 / 进度 / 状态 / 操作
