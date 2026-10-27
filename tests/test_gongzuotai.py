@@ -41,9 +41,9 @@ BASE_URL = os.getenv("GONGZUOTAI_BASE_URL", "https://stargazer-test.mimiron.cn:8
 # 登录页地址
 LOGIN_URL = os.getenv("GONGZUOTAI_LOGIN_URL", "https://stargazer-test.mimiron.cn:8443/login")
 
-# 登录账号: 用户名非敏感, 设默认值; 密码必须通过环境变量提供 (不写入代码)
+# 登录账号: 用户名非敏感, 设默认值; 密码从 .env 读取 (不写入代码)
 LOGIN_USERNAME = os.getenv("LOGIN_USERNAME", "zhenyu_m")
-LOGIN_PASSWORD = os.getenv("LOGIN_PASSWORD", "")  # 运行前: export LOGIN_PASSWORD='xxx'
+LOGIN_PASSWORD = os.getenv("LOGIN_PASSWORD", "")  # 取值为 .env 中的 LOGIN_PASSWORD (conftest.py 自动加载)
 
 # 是否无头模式运行
 HEADLESS = os.getenv("HEADLESS", "true").lower() == "true"

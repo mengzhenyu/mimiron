@@ -46,20 +46,20 @@ playwright install chromium
 
 ### 2. 配置环境变量
 
-运行测试前必须设置以下环境变量（密码不写入代码）：
+账号密码等敏感配置统一写在项目根目录的 `.env` 文件中（该文件已加入 `.gitignore`，不会被提交），由 `conftest.py` 自动加载。
+
+在项目根目录创建 `.env`：
 
 ```bash
-# 登录密码 (必填)
-export LOGIN_PASSWORD='your_password_here'
-
-# 无头模式 (调试时设 false, CI 时设 true, 默认 true)
-export HEADLESS=false
-
-# 可选: 覆盖默认配置
-# export LOGIN_USERNAME='zhenyu_m'
-# export GONGZUOTAI_BASE_URL='https://stargazer-test.mimiron.cn:8443'
-# export GONGZUOTAI_LOGIN_URL='https://stargazer-test.mimiron.cn:8443/login'
+LOGIN_USERNAME=zhenyu_m
+LOGIN_PASSWORD='your_password_here'
+HEADLESS=false
 ```
+
+说明：
+- 已存在的系统环境变量优先级高于 `.env`，可用 `export` 临时覆盖；
+- `HEADLESS=false` 为有头模式，要无头运行改为 `true` 或在运行时 `export HEADLESS=true`；
+- 可选覆盖项：`GONGZUOTAI_BASE_URL`、`GONGZUOTAI_LOGIN_URL`、`ZHIBANGL_BASE_URL` 等。
 
 ## 运行测试
 

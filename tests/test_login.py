@@ -30,9 +30,9 @@ BASE_URL = os.getenv(
     "https://stargazer-test.mimiron.cn:8443/login?redirect_to=%2Fevent%3Fcurrent%3D1%26pageSize%3D10",
 )
 
-# 登录账号: 用户名非敏感, 设默认值; 密码必须通过环境变量提供 (不写入代码)
+# 登录账号: 用户名非敏感, 设默认值; 密码从 .env 读取 (不写入代码)
 LOGIN_USERNAME = os.getenv("LOGIN_USERNAME", "zhenyu_m")
-LOGIN_PASSWORD = os.getenv("LOGIN_PASSWORD", "")  # 运行前: export LOGIN_PASSWORD='xxx'
+LOGIN_PASSWORD = os.getenv("LOGIN_PASSWORD", "")  # 取值为 .env 中的 LOGIN_PASSWORD (conftest.py 自动加载)
 
 # 错误密码 (用于"错误密码登录"用例, 非敏感)
 WRONG_PASSWORD = os.getenv("WRONG_PASSWORD", "Wrong_Pwd@2026#")

@@ -16,10 +16,10 @@ playwright install chromium
 
 # ==================== 环境变量配置 (运行前必设) ====================
 
-# 登录密码 (必须通过环境变量提供, 不写入代码)
-export LOGIN_PASSWORD='}zV:&L) ".sT'
+# 账号密码统一配置在项目根目录 .env 文件中 (conftest.py 自动加载, .env 已加入 .gitignore)
+# 无需再在此处 export LOGIN_PASSWORD
 
-# 非无头模式运行 (推荐调试时使用, 默认 false 表示有头模式)
+# 非无头模式运行 (有头调试), 也可在 .env 中配置
 export HEADLESS=false
 
 # 可选: 覆盖默认登录用户名

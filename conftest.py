@@ -1,6 +1,33 @@
+import os
+from pathlib import Path
+
 import pytest
 import allure
 from playwright.sync_api import Page
+
+
+# ==================== 本地环境变量加载 (.env) ====================
+# 说明:
+#   1. 账号密码等敏感信息统一放在项目根目录的 .env 文件中 (.env 已加入 .gitignore);
+#   2. conftest.py 会在测试模块导入前执行, 因此测试模块顶层的 os.getenv 能取到值;
+#   3. 已存在的系统环境变量优先, 不会被 .env 覆盖.
+
+def _load_dotenv(env_path: Path) -> None:
+    """加载 .env 文件中的 KEY=VALUE 到 os.environ (不覆盖已有环境变量)"""
+    if not env_path.is_file():
+        return
+    for raw_line in env_path.read_text(encoding="utf-8").splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, _, value = line.partition("=")
+        key = key.strip()
+        value = value.strip().strip('"').strip("'")
+        if key:
+            os.environ.setdefault(key, value)
+
+
+_load_dotenv(Path(__file__).resolve().parent / ".env")
 
 
 def pytest_configure(config):

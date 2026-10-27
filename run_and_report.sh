@@ -7,9 +7,10 @@
 # 切换到脚本所在目录
 cd "$(dirname "$0")" || exit 1
 
-# ===== 环境变量 (运行前按需修改) =====
-export LOGIN_PASSWORD='}zV:&L) ".sT'
-export HEADLESS=false
+# ===== 环境变量 =====
+# 账号密码统一配置在项目根目录 .env 文件中 (conftest.py 自动加载, 已加入 .gitignore)
+# 如需临时覆盖, 可在执行本脚本前 export 同名变量
+export HEADLESS="${HEADLESS:-false}"
 
 # ===== 1. 运行测试 =====
 echo "========================================"

@@ -19,6 +19,9 @@ allure-results/
 # Pytest cache
 .pytest_cache/
 
+# 本地环境变量 (含账号密码, 禁止提交)
+.env
+
 # OS files
 .DS_Store
 Thumbs.db
