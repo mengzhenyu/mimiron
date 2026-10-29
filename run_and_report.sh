@@ -1,37 +1,43 @@
 #!/bin/bash
 # ============================================================
-# 观星系统 E2E 测试 - 一键运行 + 打开报告
-# 用法: bash run_and_report.sh
+# 观星系统 E2E 测试 - 一键运行 + 自动刷新 Allure 报告
+# 用法:
+#   bash run_and_report.sh                              # 跑全部测试
+#   bash run_and_report.sh tests/test_banzushezhi.py    # 指定单个测试文件
+#   bash run_and_report.sh tests/ZhiBanGL/              # 指定测试目录
+#   bash run_and_report.sh -k "create"                  # pytest 参数透传
 # ============================================================
 
-# 切换到脚本所在目录
 cd "$(dirname "$0")" || exit 1
 
-# ===== 环境变量 =====
-# 账号密码统一配置在项目根目录 .env 文件中 (conftest.py 自动加载, 已加入 .gitignore)
-# 如需临时覆盖, 可在执行本脚本前 export 同名变量
 export HEADLESS="${HEADLESS:-false}"
 
-# ===== 1. 运行测试 =====
-echo "========================================"
-echo "开始运行 test_gongzuotai.py 测试..."
-echo "========================================"
-venv/bin/python -m pytest tests/test_gongzuotai.py -v --alluredir=./allure-results --clean-alluredir
+# 测试目标: 命令行传入, 或默认跑全部
+TEST_TARGET="${*:-tests/}"
 
-# 检查测试是否成功 (0=成功)
+echo "========================================"
+echo "运行测试目标: $TEST_TARGET"
+echo "HEADLESS=$HEADLESS"
+echo "========================================"
+
+# ===== 1. 运行测试 =====
+venv/bin/python -m pytest $TEST_TARGET -v \
+    --alluredir=./allure-results \
+    --clean-alluredir
+
 TEST_EXIT_CODE=$?
 if [ $TEST_EXIT_CODE -ne 0 ]; then
     echo "========================================"
-    echo "测试存在失败用例 (exit code: $TEST_EXIT_CODE)"
+    echo "⚠️  测试存在失败用例 (exit code: $TEST_EXIT_CODE)"
     echo "========================================"
 fi
 
-# ===== 2. 释放可能被占用的报告端口 =====
-lsof -ti :59882 | xargs kill -9 2>/dev/null
+# ===== 2. 重启 Allure 报告服务 =====
+# 调用 scripts/restart_allure.sh, 让 launchctl 重新加载最新 allure-results
+echo ""
+echo "========================================"
+echo "刷新 Allure 报告..."
+echo "========================================"
+bash scripts/restart_allure.sh
 
-# ===== 3. 启动 Allure 报告 =====
-echo "========================================"
-echo "启动 Allure 报告: http://127.0.0.1:59882"
-echo "按 Ctrl+C 退出报告服务"
-echo "========================================"
-allure serve ./allure-results --port 59882
+exit $TEST_EXIT_CODE
