@@ -67,8 +67,7 @@ if $READY; then
     echo "[restart_allure] ✅ 服务已就绪: ${REPORT_URL}"
     echo "[restart_allure]   launchctl list:"
     launchctl list | grep mimiron
-    echo "[restart_allure]   打开浏览器..."
-    open "${REPORT_URL}/"
+    # 注意: allure serve 启动后会自动打开浏览器, 此处不再重复 open, 否则会出现两个标签页
 else
     echo "[restart_allure] ❌ 服务启动超时, 日志:"
     tail -10 /tmp/allure-mimiron.log 2>/dev/null

@@ -248,20 +248,34 @@ def fill_team_form(page: Page, name: str, building: str = "1号楼", member_coun
     select_members(page, member_count)
 
 
+def ensure_members_selected(page: Page, count: int = 1):
+    """
+    楼栋选择会异步刷新班组成员列表并可能清空已选成员;
+    轮询确认已选数, 缺失时重选, 并再等一轮确认未被刷新清空.
+    """
+    tags = member_select(page).locator(".ant-select-selection-item")
+    for _ in range(5):
+        page.wait_for_timeout(800)
+        if tags.count() >= count:
+            # 再等一轮确认没有被异步刷新清空
+            page.wait_for_timeout(500)
+            if tags.count() >= count:
+                return
+        select_members(page, count)
+    expect(tags).to_have_count(count, timeout=5000)
+
+
 def create_team(page: Page, name: str, building: str = "1号楼", member_count: int = 1):
     """新建班组并等待提交成功 (抽屉关闭 + 提示文案)"""
     open_create_drawer(page)
     fill_team_form(page, name, building, member_count)
     # 楼栋选择会异步刷新班组成员列表, 可能把已选成员清空; 校验缺失时重选
-    tags = member_select(page).locator(".ant-select-selection-item")
-    for _ in range(3):
-        page.wait_for_timeout(800)
-        if tags.count() >= 1:
-            break
-        select_members(page, member_count)
+    ensure_members_selected(page, member_count)
     drawer_confirm_btn(page).click()
     expect(message_notice(page)).to_contain_text("班组创建成功", timeout=10000)
     expect(drawer(page)).not_to_be_visible(timeout=10000)
+    # 创建成功后刷新列表, 确保新数据已加载
+    goto_teams_page(page)
 
 
 def delete_team_if_exists(page: Page, name: str):
@@ -387,6 +401,8 @@ class TestBanZuSheZhi:
     def reset_to_teams(self, logged_in_page: Page):
         """每个用例执行前, 统一导航回班组设置列表页, 保证起始状态一致"""
         goto_teams_page(logged_in_page)
+        # 重置鼠标到左上角, 避免右上角头像 hover 触发 popover 遮挡新建按钮
+        logged_in_page.mouse.move(0, 0)
         yield
 
     # ==================== 一、列表页测试 ====================
@@ -601,9 +617,12 @@ class TestBanZuSheZhi:
         with allure.step("提交并验证仅剩楼栋/成员两项校验"):
             drawer_confirm_btn(logged_in_page).click()
             expect(drawer(logged_in_page)).to_be_visible()
+            # 等待校验信息异步渲染
+            expect(logged_in_page.locator(".ant-form-item-explain-error").first).to_be_visible(timeout=5000)
             errors = [
-                e.inner_text().strip()
-                for e in logged_in_page.locator(".ant-form-item-explain-error").all()
+                t.strip()
+                for t in logged_in_page.locator(".ant-form-item-explain-error").all_inner_texts()
+                if t.strip()
             ]
             assert "请选择楼栋" in errors, f"缺少楼栋校验: {errors}"
             assert "请选择班组成员" in errors, f"缺少班组成员校验: {errors}"
@@ -661,6 +680,9 @@ class TestBanZuSheZhi:
         with allure.step(f"使用重复名称 '{existing_name}' 新建班组"):
             open_create_drawer(logged_in_page)
             fill_team_form(logged_in_page, existing_name)
+            # 楼栋选择会异步刷新班组成员列表并清空已选, 提交前确认成员仍选中,
+            # 否则会被前端"请选择班组成员"校验拦截导致等不到重名 toast
+            ensure_members_selected(logged_in_page, 1)
             drawer_confirm_btn(logged_in_page).click()
 
         with allure.step("验证提示'数据或名称不能重复'且抽屉保持打开"):
@@ -680,10 +702,12 @@ class TestBanZuSheZhi:
         with allure.step("打开抽屉并选择 2 个班组成员"):
             open_create_drawer(logged_in_page)
             select_members(logged_in_page, count=2)
+            # 班组成员列表可能被异步刷新清空已选, 确认 2 个标签稳定存在
+            ensure_members_selected(logged_in_page, 2)
 
         with allure.step("验证成员选择器展示 2 个已选标签"):
             selected_tags = member_select(logged_in_page).locator(".ant-select-selection-item")
-            expect(selected_tags).to_have_count(2)
+            expect(selected_tags).to_have_count(2, timeout=8000)
 
         with allure.step("关闭抽屉"):
             drawer_cancel_btn(logged_in_page).click()
